@@ -1,4 +1,4 @@
-"""Entry point: python -m security_monitor"""
+"""Entry point: python run.py (or python -m monitor from the parent folder)"""
 
 import sys
 
