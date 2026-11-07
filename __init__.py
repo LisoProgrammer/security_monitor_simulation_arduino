@@ -1,1 +1,1 @@
-"""Security event monitor (simulation)."""
+"""Security event monitor with Arduino Uno physical intrusion alerts."""
