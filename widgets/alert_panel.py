@@ -1,15 +1,18 @@
 """Side panel with active alerts."""
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
+    QWidget,
 )
 
-from ..config import ALERT_SEVERITIES, SEVERITY_COLORS
+from ..config import ACTION_NONE, ALERT_SEVERITIES, SEVERITY_COLORS
 
 MAX_ALERTS = 8
 
@@ -66,15 +69,16 @@ class AlertCard(QFrame):
     def _build_buttons(self, event):
         row = QHBoxLayout()
 
-        action = QPushButton(event["action"])
-        action.clicked.connect(
-            lambda checked=False, e=event: self.action_requested.emit(e)
-        )
+        if event["action"] != ACTION_NONE:
+            action = QPushButton(event["action"])
+            action.clicked.connect(
+                lambda checked=False, e=event: self.action_requested.emit(e)
+            )
+            row.addWidget(action)
 
         ignore = QPushButton("Ignore")
         ignore.clicked.connect(self.deleteLater)
 
-        row.addWidget(action)
         row.addWidget(ignore)
         return row
 
@@ -88,15 +92,41 @@ class AlertPanel(QFrame):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
 
         title = QLabel("ACTIVE ALERTS")
         title.setObjectName("SectionTitle")
         layout.addWidget(title)
 
-        self.container = QVBoxLayout()
+        # Alerts live inside a scroll area so accumulating cards can never
+        # increase the minimum height of the dashboard window.  That growth is
+        # what used to push the intrusion overlay out of place after the first
+        # alert.
+        self.scroll = QScrollArea(self)
+        self.scroll.setObjectName("AlertScroll")
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self.scroll.setMinimumHeight(0)
+
+        self.body = QWidget()
+        self.body.setObjectName("AlertScrollBody")
+        self.body.setMinimumHeight(0)
+        self.container = QVBoxLayout(self.body)
+        self.container.setContentsMargins(0, 0, 4, 0)
         self.container.setSpacing(8)
-        layout.addLayout(self.container)
-        layout.addStretch()
+        # Keep the body at least as tall as its content so the scroll area
+        # scrolls instead of squeezing the cards.
+        self.container.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        self.container.addStretch()
+
+        self.scroll.setWidget(self.body)
+        layout.addWidget(self.scroll, 1)
 
     def set_events(self, events):
         self._clear()
@@ -106,16 +136,18 @@ class AlertPanel(QFrame):
         if not alerts:
             label = QLabel("No active alerts.")
             label.setStyleSheet("color:#64748b;padding:15px;")
-            self.container.addWidget(label)
+            self.container.insertWidget(0, label)
             return
 
-        for event in alerts:
+        for index, event in enumerate(alerts):
             card = AlertCard(event)
             card.action_requested.connect(self.action_requested)
-            self.container.addWidget(card)
+            self.container.insertWidget(index, card)
 
     def _clear(self):
-        while self.container.count():
-            widget = self.container.takeAt(0).widget()
-            if widget:
+        # Remove widgets and spacer items, keeping the trailing stretch.
+        while self.container.count() > 1:
+            item = self.container.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
                 widget.deleteLater()
