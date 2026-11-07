@@ -7,6 +7,13 @@ QMainWindow, QWidget {
     font-family: "Segoe UI";
 }
 
+/* Labels must not paint the global dark background: inside cards they would
+   show as black boxes around every title.  Specific label styles that do want
+   a background (for example #SystemStatus) still override this rule. */
+QLabel {
+    background: transparent;
+}
+
 QFrame#StatCard {
     background: #111827;
     border: 1px solid #1f2937;
@@ -50,6 +57,19 @@ QFrame#AlertCard {
     background: #111827;
     border: 1px solid #293548;
     border-radius: 8px;
+}
+
+QScrollArea#AlertScroll {
+    background: transparent;
+    border: none;
+}
+
+QScrollArea#AlertScroll > QWidget > QWidget {
+    background: transparent;
+}
+
+QWidget#AlertScrollBody {
+    background: transparent;
 }
 
 QPushButton {
@@ -107,5 +127,16 @@ QScrollBar:vertical {
 QScrollBar::handle:vertical {
     background: #334155;
     border-radius: 4px;
+}
+
+QStatusBar {
+    background: #0f172a;
+    color: #94a3b8;
+    border-top: 1px solid #1e293b;
+    font-size: 10px;
+}
+
+QStatusBar::item {
+    border: none;
 }
 """
